@@ -45,6 +45,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    // Reset player stats to ensure fresh start
+    this.resetPlayerStats();
+    
     // Set world bounds
     this.physics.world.setBounds(0, 0, 1200, 800);
     
@@ -513,8 +516,26 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setScrollFactor(0);
     
     this.input.keyboard.on('keydown-R', () => {
+      // Reset player stats before restarting
+      this.resetPlayerStats();
       this.scene.restart();
     });
+  }
+
+  private resetPlayerStats() {
+    // Reset player stats to initial values
+    this.playerStats = {
+      health: 100,
+      maxHealth: 100,
+      mana: 50,
+      maxMana: 50,
+      level: 1,
+      experience: 0,
+      strength: 10,
+      defense: 8,
+      agility: 12,
+      intelligence: 6
+    };
   }
 
   private updateHealthBar() {

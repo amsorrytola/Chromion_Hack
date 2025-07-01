@@ -32,13 +32,13 @@ contract LootManagerTest is Test {
         vm.stopPrank();
     }
     
-    function testLootManagerDeployment() public {
+    function testLootManagerDeployment() public view {
         assertEq(lootManager.owner(), owner);
         assertEq(lootManager.name(), "Dungeon Equipment");
         assertEq(lootManager.symbol(), "DEQP");
     }
     
-    function testPartyRegistryDeployment() public {
+    function testPartyRegistryDeployment() public view {
         assertEq(partyRegistry.owner(), owner);
     }
     

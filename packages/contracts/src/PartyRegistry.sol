@@ -111,6 +111,29 @@ contract PartyRegistry is Ownable, ReentrancyGuard {
         
         return newPartyId;
     }
+
+    /**
+     * @dev Delete a party (only by the party leader)
+     */
+    function deleteParty(uint256 partyId) external onlyPartyLeader(partyId) partyExists(partyId) nonReentrant {
+        Party storage party = parties[partyId];
+
+
+        // Mark all members as not in any party
+        for (uint256 i = 0; i < party.members.length; i++) {
+            address member = party.members[i];
+            players[member].currentPartyId = 0;
+            partyMembers[partyId][member] = false;
+        }
+
+        // Clear party data
+        delete parties[partyId];
+
+        emit PartyDisbanded(partyId);
+        _partyIds--;
+
+    }
+
     
     /**
      * @dev Join an existing party

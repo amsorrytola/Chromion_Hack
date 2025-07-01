@@ -15,7 +15,8 @@
     "test:contracts": "cd packages/contracts && npm test",
     "test:backend": "cd packages/backend && npm test",
     "test:frontend": "cd packages/frontend && npm test",
-    "build": "npm run build:contracts && npm run build:backend && npm run build:frontend",
+    "build": "npm run build:backend && npm run build:frontend && npm run build:shared",
+    "build:shared": "cd packages/shared && npm run build",
     "build:contracts": "cd packages/contracts && npm run build",
     "build:backend": "cd packages/backend && npm run build",
     "build:frontend": "cd packages/frontend && npm run build",
@@ -53,5 +54,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/chaniiii/cross-chain-ai-dungeon-crawler"
+  },
+  "dependencies": {
+    "axios": "^1.10.0"
   }
 }

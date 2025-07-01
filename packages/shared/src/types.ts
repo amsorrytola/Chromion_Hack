@@ -35,6 +35,7 @@ export interface Party {
   currentDungeonId?: string;
   createdAt: Date;
   updatedAt: Date;
+  onchainPartyId: any; // Optional field for on-chain party ID
 }
 
 export interface PartyMember {
@@ -46,18 +47,22 @@ export interface PartyMember {
   isOnline: boolean;
 }
 
-export enum PartyStatus {
-  FORMING = 'forming',
-  ACTIVE = 'active',
-  IN_DUNGEON = 'in_dungeon',
-  COMPLETED = 'completed',
-  DISBANDED = 'disbanded'
-}
+export const PartyStatus = {
+  FORMING: 'forming',
+  ACTIVE: 'active',
+  IN_DUNGEON: 'in_dungeon',
+  COMPLETED: 'completed',
+  DISBANDED: 'disbanded'
+} as const;
 
-export enum PartyRole {
-  LEADER = 'leader',
-  MEMBER = 'member'
-}
+export type PartyStatus = typeof PartyStatus[keyof typeof PartyStatus];
+
+export const PartyRole = {
+  LEADER: 'leader',
+  MEMBER: 'member'
+} as const;
+
+export type PartyRole = typeof PartyRole[keyof typeof PartyRole];
 
 // Dungeon types
 export interface Dungeon {
@@ -84,19 +89,23 @@ export interface DungeonRoom {
   events?: RoomEvent[];
 }
 
-export enum DungeonStatus {
-  ACTIVE = 'active',
-  COMPLETED = 'completed',
-  FAILED = 'failed'
-}
+export const DungeonStatus = {
+  ACTIVE: 'active',
+  COMPLETED: 'completed',
+  FAILED: 'failed'
+} as const;
 
-export enum RoomType {
-  COMBAT = 'combat',
-  TREASURE = 'treasure',
-  BOSS = 'boss',
-  EVENT = 'event',
-  REST = 'rest'
-}
+export type DungeonStatus = typeof DungeonStatus[keyof typeof DungeonStatus];
+
+export const RoomType = {
+  COMBAT: 'combat',
+  TREASURE: 'treasure',
+  BOSS: 'boss',
+  EVENT: 'event',
+  REST: 'rest'
+} as const;
+
+export type RoomType = typeof RoomType[keyof typeof RoomType];
 
 export interface RoomLayout {
   width: number;
@@ -127,14 +136,16 @@ export interface Enemy {
   isAlive: boolean;
 }
 
-export enum EnemyType {
-  GOBLIN = 'goblin',
-  ORC = 'orc',
-  SKELETON = 'skeleton',
-  WIZARD = 'wizard',
-  DRAGON = 'dragon',
-  BOSS = 'boss'
-}
+export const EnemyType = {
+  GOBLIN: 'goblin',
+  ORC: 'orc',
+  SKELETON: 'skeleton',
+  WIZARD: 'wizard',
+  DRAGON: 'dragon',
+  BOSS: 'boss'
+} as const;
+
+export type EnemyType = typeof EnemyType[keyof typeof EnemyType];
 
 export interface Ability {
   id: string;
@@ -146,13 +157,15 @@ export interface Ability {
   targetType: TargetType;
 }
 
-export enum TargetType {
-  SELF = 'self',
-  ALLY = 'ally',
-  ENEMY = 'enemy',
-  ALL_ALLIES = 'all_allies',
-  ALL_ENEMIES = 'all_enemies'
-}
+export const TargetType = {
+  SELF: 'self',
+  ALLY: 'ally',
+  ENEMY: 'enemy',
+  ALL_ALLIES: 'all_allies',
+  ALL_ENEMIES: 'all_enemies'
+} as const;
+
+export type TargetType = typeof TargetType[keyof typeof TargetType];
 
 // Equipment types
 export interface Equipment {
@@ -174,21 +187,25 @@ export interface Equipment {
   createdAt: Date;
 }
 
-export enum EquipmentType {
-  WEAPON = 'weapon',
-  ARMOR = 'armor',
-  ACCESSORY = 'accessory',
-  CONSUMABLE = 'consumable'
-}
+export const EquipmentType = {
+  WEAPON: 'weapon',
+  ARMOR: 'armor',
+  ACCESSORY: 'accessory',
+  CONSUMABLE: 'consumable'
+} as const;
 
-export enum Rarity {
-  COMMON = 'common',
-  UNCOMMON = 'uncommon',
-  RARE = 'rare',
-  EPIC = 'epic',
-  LEGENDARY = 'legendary',
-  MYTHIC = 'mythic'
-}
+export type EquipmentType = typeof EquipmentType[keyof typeof EquipmentType];
+
+export const Rarity = {
+  COMMON: 'common',
+  UNCOMMON: 'uncommon',
+  RARE: 'rare',
+  EPIC: 'epic',
+  LEGENDARY: 'legendary',
+  MYTHIC: 'mythic'
+} as const;
+
+export type Rarity = typeof Rarity[keyof typeof Rarity];
 
 export interface EquipmentStats {
   attackPower: number;
@@ -229,13 +246,15 @@ export interface LendingOffer {
   createdAt: Date;
 }
 
-export enum LendingStatus {
-  AVAILABLE = 'available',
-  ACTIVE = 'active',
-  COMPLETED = 'completed',
-  DEFAULTED = 'defaulted',
-  CANCELLED = 'cancelled'
-}
+export const LendingStatus = {
+  AVAILABLE: 'available',
+  ACTIVE: 'active',
+  COMPLETED: 'completed',
+  DEFAULTED: 'defaulted',
+  CANCELLED: 'cancelled'
+} as const;
+
+export type LendingStatus = typeof LendingStatus[keyof typeof LendingStatus];
 
 // Loot types
 export interface LootItem {
@@ -249,12 +268,14 @@ export interface LootItem {
   equipmentId?: string;
 }
 
-export enum LootType {
-  EQUIPMENT = 'equipment',
-  CURRENCY = 'currency',
-  CONSUMABLE = 'consumable',
-  MATERIAL = 'material'
-}
+export const LootType = {
+  EQUIPMENT: 'equipment',
+  CURRENCY: 'currency',
+  CONSUMABLE: 'consumable',
+  MATERIAL: 'material'
+} as const;
+
+export type LootType = typeof LootType[keyof typeof LootType];
 
 // AI/NPC types
 export interface AICompanion {
@@ -269,14 +290,16 @@ export interface AICompanion {
   createdAt: Date;
 }
 
-export enum PersonalityType {
-  BRAVE = 'brave',
-  CAUTIOUS = 'cautious',
-  WISE = 'wise',
-  AGGRESSIVE = 'aggressive',
-  SUPPORTIVE = 'supportive',
-  MYSTERIOUS = 'mysterious'
-}
+export const PersonalityType = {
+  BRAVE: 'brave',
+  CAUTIOUS: 'cautious',
+  WISE: 'wise',
+  AGGRESSIVE: 'aggressive',
+  SUPPORTIVE: 'supportive',
+  MYSTERIOUS: 'mysterious'
+} as const;
+
+export type PersonalityType = typeof PersonalityType[keyof typeof PersonalityType];
 
 export interface DialogueEntry {
   id: string;
@@ -310,13 +333,15 @@ export interface RoomEvent {
   isCompleted: boolean;
 }
 
-export enum EventType {
-  TREASURE_CHEST = 'treasure_chest',
-  TRAP = 'trap',
-  NPC_ENCOUNTER = 'npc_encounter',
-  PUZZLE = 'puzzle',
-  SHRINE = 'shrine'
-}
+export const EventType = {
+  TREASURE_CHEST: 'treasure_chest',
+  TRAP: 'trap',
+  NPC_ENCOUNTER: 'npc_encounter',
+  PUZZLE: 'puzzle',
+  SHRINE: 'shrine'
+} as const;
+
+export type EventType = typeof EventType[keyof typeof EventType];
 
 export interface EventChoice {
   id: string;
@@ -360,31 +385,33 @@ export interface WebSocketMessage {
   roomId?: string;
 }
 
-export enum MessageType {
+export const MessageType = {
   // Party messages
-  PARTY_UPDATE = 'party_update',
-  PARTY_MEMBER_JOIN = 'party_member_join',
-  PARTY_MEMBER_LEAVE = 'party_member_leave',
-  PARTY_DISBANDED = 'party_disbanded',
+  PARTY_UPDATE: 'party_update',
+  PARTY_MEMBER_JOIN: 'party_member_join',
+  PARTY_MEMBER_LEAVE: 'party_member_leave',
+  PARTY_DISBANDED: 'party_disbanded',
   
   // Dungeon messages
-  DUNGEON_UPDATE = 'dungeon_update',
-  ROOM_ENTERED = 'room_entered',
-  COMBAT_START = 'combat_start',
-  COMBAT_ACTION = 'combat_action',
-  COMBAT_END = 'combat_end',
-  LOOT_FOUND = 'loot_found',
+  DUNGEON_UPDATE: 'dungeon_update',
+  ROOM_ENTERED: 'room_entered',
+  COMBAT_START: 'combat_start',
+  COMBAT_ACTION: 'combat_action',
+  COMBAT_END: 'combat_end',
+  LOOT_FOUND: 'loot_found',
   
   // Chat messages
-  CHAT_MESSAGE = 'chat_message',
-  AI_DIALOGUE = 'ai_dialogue',
+  CHAT_MESSAGE: 'chat_message',
+  AI_DIALOGUE: 'ai_dialogue',
   
   // System messages
-  PLAYER_ONLINE = 'player_online',
-  PLAYER_OFFLINE = 'player_offline',
-  ERROR = 'error',
-  HEARTBEAT = 'heartbeat'
-}
+  PLAYER_ONLINE: 'player_online',
+  PLAYER_OFFLINE: 'player_offline',
+  ERROR: 'error',
+  HEARTBEAT: 'heartbeat'
+} as const;
+
+export type MessageType = typeof MessageType[keyof typeof MessageType];
 
 // Blockchain types
 export interface ChainConfig {
@@ -414,19 +441,21 @@ export interface TransactionResult {
 }
 
 // Error types
-export enum ErrorCode {
-  INVALID_INPUT = 'INVALID_INPUT',
-  NOT_FOUND = 'NOT_FOUND',
-  UNAUTHORIZED = 'UNAUTHORIZED',
-  FORBIDDEN = 'FORBIDDEN',
-  CONFLICT = 'CONFLICT',
-  INTERNAL_ERROR = 'INTERNAL_ERROR',
-  BLOCKCHAIN_ERROR = 'BLOCKCHAIN_ERROR',
-  INSUFFICIENT_FUNDS = 'INSUFFICIENT_FUNDS',
-  PARTY_FULL = 'PARTY_FULL',
-  ALREADY_IN_PARTY = 'ALREADY_IN_PARTY',
-  EQUIPMENT_NOT_AVAILABLE = 'EQUIPMENT_NOT_AVAILABLE'
-}
+export const ErrorCode = {
+  INVALID_INPUT: 'INVALID_INPUT',
+  NOT_FOUND: 'NOT_FOUND',
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  FORBIDDEN: 'FORBIDDEN',
+  CONFLICT: 'CONFLICT',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  BLOCKCHAIN_ERROR: 'BLOCKCHAIN_ERROR',
+  INSUFFICIENT_FUNDS: 'INSUFFICIENT_FUNDS',
+  PARTY_FULL: 'PARTY_FULL',
+  ALREADY_IN_PARTY: 'ALREADY_IN_PARTY',
+  EQUIPMENT_NOT_AVAILABLE: 'EQUIPMENT_NOT_AVAILABLE'
+} as const;
+
+export type ErrorCode = typeof ErrorCode[keyof typeof ErrorCode];
 
 export interface GameError {
   code: ErrorCode;

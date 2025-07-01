@@ -4,6 +4,9 @@ export * from './types';
 export type {
   Player,
   Party,
+  PartyMember,
+  PartyStatus,
+  PartyRole,
   Dungeon,
   Equipment,
   LendingOffer,

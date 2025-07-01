@@ -90,7 +90,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
       <div ref={gameRef} className="phaser-game border-2 border-purple-500 rounded-lg overflow-hidden" />
       
       {/* Enhanced overlay UI */}
-      <div className="absolute top-4 left-4 z-10 text-white bg-black bg-opacity-70 p-3 rounded-lg text-sm">
+      {/* <div className="absolute top-4 left-4 z-10 text-white bg-black bg-opacity-70 p-3 rounded-lg text-sm">
         <h3 className="font-bold mb-2 text-purple-300">🎮 Interactive Dungeon</h3>
         <div className="space-y-1 text-xs">
           <div>🏃 <strong>Move:</strong> WASD / Arrow Keys</div>
@@ -98,17 +98,17 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           <div>💰 <strong>Loot:</strong> Collect treasure chests</div>
           <div>🎯 <strong>Goal:</strong> Explore and level up!</div>
         </div>
-      </div>
+      </div> */}
 
       {/* Performance info */}
-      <div className="absolute bottom-4 left-4 z-10 text-white bg-black bg-opacity-70 p-2 rounded text-xs">
+      {/* <div className="absolute bottom-4 left-4 z-10 text-white bg-black bg-opacity-70 p-2 rounded text-xs">
         <div>🎲 Procedural dungeon generation</div>
         <div>✨ Real-time lighting & effects</div>
         <div>🤖 Smart enemy AI movement</div>
-      </div>
+      </div> */}
 
       {/* Game stats overlay */}
-      <div className="absolute top-4 right-4 z-10 text-white bg-black bg-opacity-70 p-3 rounded-lg text-sm">
+      {/* <div className="absolute top-4 right-4 z-10 text-white bg-black bg-opacity-70 p-3 rounded-lg text-sm">
         <h3 className="font-bold mb-2 text-green-300">📊 Character</h3>
         <div className="space-y-1 text-xs">
           <div>⭐ Level: {state.player?.level || 1}</div>
@@ -116,10 +116,10 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           <div>💙 Mana: {state.player?.mana || 50}/{state.player?.maxMana || 50}</div>
           <div>🏰 Floor: {state.dungeonData.currentFloor}</div>
         </div>
-      </div>
+      </div> */}
 
       {/* Features showcase */}
-      <div className="absolute bottom-4 right-4 z-10 text-white bg-black bg-opacity-70 p-3 rounded-lg text-sm max-w-xs">
+      {/* <div className="absolute bottom-4 right-4 z-10 text-white bg-black bg-opacity-70 p-3 rounded-lg text-sm max-w-xs">
         <h3 className="font-bold mb-2 text-yellow-300">🌟 Features</h3>
         <div className="space-y-1 text-xs">
           <div>✅ Real-time 2D exploration</div>
@@ -128,7 +128,7 @@ const PhaserGame: React.FC<PhaserGameProps> = ({
           <div>✅ Visual effects & animations</div>
           <div>🔜 Multiplayer coming soon!</div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

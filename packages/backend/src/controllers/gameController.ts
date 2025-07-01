@@ -3,6 +3,7 @@ import { getDatabase } from '../database/prisma';
 import { logger } from '../utils/logger';
 import { GameState } from '../../../shared/src/types';
 import { Player as SharedPlayer } from '../../../shared/src/types';
+import { convertBigInt } from '../utils/convertBigInt';
 
 export class GameController {
   private getDb() {
@@ -61,48 +62,63 @@ export class GameController {
         }
       };
 
-      res.json({ success: true, data: gameState });
+      res.json({ success: true, data: convertBigInt(gameState) });
     } catch (error) {
       next(error);
     }
   }
 
-  async joinGame(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async connectPlayer(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { wallet, username } = req.body;
-
-      let player = await this.getDb().player.findUnique({
-        where: { wallet }
-      });
-
-      if (!player) {
-        player = await this.getDb().player.create({
-          data: {
-            wallet,
-            username,
-            gameStats: {
-              create: {}
-            }
-          },
-          include: {
-            gameStats: true
-          }
+  
+      if (!wallet) {
+        res.status(400).json({ success: false, message: 'Wallet is required' });
+        return;
+      }
+  
+      const db = getDatabase();
+  
+      let player = await db.player.findUnique({ where: { wallet } });
+  
+      if (player) {
+        // Update existing player (reactivate and optionally update username)
+        const updateData: any = { isActive: true };
+        if (username && username !== player.username) {
+          updateData.username = username;
+        }
+        
+        player = await db.player.update({
+          where: { id: player.id },
+          data: updateData,
+          include: { gameStats: true }
         });
       } else {
-        player = await this.getDb().player.update({
-          where: { id: player.id },
-          data: { isActive: true },
-          include: {
-            gameStats: true
+        // Create new player with default game stats and optional username
+        const createData: any = {
+          wallet,
+          gameStats: {
+            create: {}
           }
+        };
+        
+        if (username) {
+          createData.username = username;
+        }
+        
+        player = await db.player.create({
+          data: createData,
+          include: { gameStats: true }
         });
       }
-
-      res.json({ success: true, data: player });
+  
+      res.json({ success: true, data: convertBigInt(player) });
     } catch (error) {
+      console.error('Error connecting player:', error);
       next(error);
     }
   }
+  
 
   async leaveGame(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -131,43 +147,13 @@ export class GameController {
         take: 50
       });
 
-      res.json({ success: true, data: players });
+      res.json({ success: true, data: convertBigInt(players) });
     } catch (error) {
       next(error);
     }
   }
 
-  async registerPlayer(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { wallet, username } = req.body;
-
-      const existingPlayer = await this.getDb().player.findUnique({
-        where: { wallet }
-      });
-
-      if (existingPlayer) {
-        res.status(400).json({ success: false, message: 'Player already registered' });
-        return;
-      }
-
-      const player = await this.getDb().player.create({
-        data: {
-          wallet,
-          username,
-          gameStats: {
-            create: {}
-          }
-        },
-        include: {
-          gameStats: true
-        }
-      });
-
-      res.json({ success: true, data: player });
-    } catch (error) {
-      next(error);
-    }
-  }
+  
 
   async getPlayer(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -191,7 +177,7 @@ export class GameController {
         return;
       }
 
-      res.json({ success: true, data: player });
+      res.json({ success: true, data: convertBigInt(player) });
     } catch (error) {
       next(error);
     }
@@ -210,7 +196,7 @@ export class GameController {
         }
       });
 
-      res.json({ success: true, data: player });
+      res.json({ success: true, data: convertBigInt(player) });
     } catch (error) {
       next(error);
     }

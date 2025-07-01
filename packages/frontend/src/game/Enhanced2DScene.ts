@@ -2,8 +2,11 @@ import React, { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 import { GameRegistry } from './GameRegistry';
 import { useGame } from '../contexts/GameContext';
+import { LEVELS, getLevel, getNextLevel, LevelConfig } from './levels/LevelData';
+import { LevelRenderer } from './levels/LevelRenderer';
+import { LevelManager } from './levels/LevelManager';
 
-// Simple 2D game scene with better visuals
+// Enhanced 2D scene with 3-level progression system
 export class Enhanced2DScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
   private enemies!: Phaser.Physics.Arcade.Group;
@@ -12,10 +15,17 @@ export class Enhanced2DScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: any;
   
+  // Level system
+  private levelRenderer!: LevelRenderer;
+  private levelManager!: LevelManager;
+  private currentLevelId: number = 1;
+  
   // UI
   private uiCamera!: Phaser.Cameras.Scene2D.Camera;
+  private uiContainer!: Phaser.GameObjects.Container;
   private healthBar!: Phaser.GameObjects.Graphics;
   private manaBar!: Phaser.GameObjects.Graphics;
+  private levelInfoText!: Phaser.GameObjects.Text;
   
   // Game state
   private playerStats = {
@@ -38,14 +48,26 @@ export class Enhanced2DScene extends Phaser.Scene {
   }
 
   preload() {
-    // Create better sprites using canvas
-    this.createEnhancedSprites();
+    // Initialize level system
+    const initialLevel = getLevel(this.currentLevelId)!;
+    this.levelRenderer = new LevelRenderer(this);
+    this.levelManager = new LevelManager(this, initialLevel);
+    
+    // Create sprites for the current level
+    this.levelRenderer.createSprites(initialLevel);
   }
 
   create() {
+    // Reset player stats to ensure fresh start
+    this.resetPlayerStats();
+    
+    // Get current level
+    const currentLevel = this.levelManager.getCurrentLevel();
+    const bounds = this.levelManager.getWorldBounds();
+    
     // Create world
-    this.physics.world.setBounds(0, 0, 1600, 1200);
-    this.physics.world.setFPS(60); // Ensure consistent physics
+    this.physics.world.setBounds(0, 0, bounds.width, bounds.height);
+    this.physics.world.setFPS(60);
     
     // Create environment
     this.createEnvironment();
@@ -60,145 +82,54 @@ export class Enhanced2DScene extends Phaser.Scene {
     // Setup camera
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setZoom(1.5);
-    this.cameras.main.setBounds(0, 0, 1600, 1200);
+    this.cameras.main.setBounds(0, 0, bounds.width, bounds.height);
     
     // Create UI camera
     this.uiCamera = this.cameras.add(0, 0, 800, 600);
     this.uiCamera.setName('ui');
-    this.uiCamera.ignore(this.children.list.filter(child => 
-      child !== this.healthBar && child !== this.manaBar
-    ));
+    
+    // Create UI container - all UI elements will go in here
+    this.uiContainer = this.add.container(0, 0);
+    this.uiContainer.setName('ui-container');
     
     // Create UI
     this.createUI();
     
+    // Setup camera ignores after UI is created
+    this.setupCameraIgnores();
+    
     // Setup physics
     this.setupPhysics();
     
+    // Show level intro
+    this.levelManager.showLevelIntro(currentLevel);
+    
     // Debug info
-    console.log('Enhanced2DScene created successfully');
-  }
-
-  private createEnhancedSprites() {
-    const graphics = this.add.graphics();
-    
-    // Player sprite - knight-like
-    graphics.fillStyle(0x4169E1);
-    graphics.fillRoundedRect(0, 0, 28, 28, 4);
-    graphics.fillStyle(0xFFD700);
-    graphics.fillCircle(14, 10, 6); // Helmet
-    graphics.fillStyle(0x8B4513);
-    graphics.fillRect(10, 20, 8, 8); // Body
-    graphics.generateTexture('player-enhanced', 32, 32);
-    
-    // Enemy sprite - goblin-like
-    graphics.clear();
-    graphics.fillStyle(0x8B4513);
-    graphics.fillRoundedRect(2, 2, 28, 28, 4);
-    graphics.fillStyle(0xFF4500);
-    graphics.fillCircle(16, 12, 8); // Head
-    graphics.fillStyle(0xFF0000);
-    graphics.fillCircle(12, 10, 2); // Eye
-    graphics.fillCircle(20, 10, 2); // Eye
-    graphics.generateTexture('enemy-enhanced', 32, 32);
-    
-    // Wall sprite - stone-like
-    graphics.clear();
-    graphics.fillStyle(0x696969);
-    graphics.fillRect(0, 0, 32, 32);
-    graphics.fillStyle(0x808080);
-    graphics.fillRect(2, 2, 28, 28);
-    graphics.fillStyle(0x555555);
-    graphics.fillRect(4, 4, 24, 24);
-    graphics.generateTexture('wall-enhanced', 32, 32);
-    
-    // Floor sprite - cobblestone
-    graphics.clear();
-    graphics.fillStyle(0x2F4F4F);
-    graphics.fillRect(0, 0, 32, 32);
-    graphics.fillStyle(0x374142);
-    graphics.fillCircle(8, 8, 3);
-    graphics.fillCircle(24, 8, 3);
-    graphics.fillCircle(8, 24, 3);
-    graphics.fillCircle(24, 24, 3);
-    graphics.generateTexture('floor-enhanced', 32, 32);
-    
-    // Loot sprite - chest
-    graphics.clear();
-    graphics.fillStyle(0x8B4513);
-    graphics.fillRoundedRect(4, 8, 24, 16, 2);
-    graphics.fillStyle(0xFFD700);
-    graphics.fillRoundedRect(6, 10, 20, 12, 2);
-    graphics.fillStyle(0xFF8C00);
-    graphics.fillRect(14, 12, 4, 8);
-    graphics.generateTexture('loot-enhanced', 32, 32);
-    
-    graphics.destroy();
+    console.log(`Enhanced2DScene created for Level ${currentLevel.id}: ${currentLevel.name}`);
   }
 
   private createEnvironment() {
-    this.walls = this.physics.add.staticGroup();
-    
-    // More interesting dungeon layout
-    const dungeon = this.generateDungeon(50, 37);
-    
-    for (let y = 0; y < dungeon.length; y++) {
-      for (let x = 0; x < dungeon[y].length; x++) {
-        const tileX = x * 32;
-        const tileY = y * 32;
-        
-        if (dungeon[y][x] === 1) {
-          const wall = this.physics.add.staticSprite(tileX + 16, tileY + 16, 'wall-enhanced');
-          this.walls.add(wall);
-        } else {
-          this.add.sprite(tileX + 16, tileY + 16, 'floor-enhanced');
-        }
-      }
-    }
-  }
-
-  private generateDungeon(width: number, height: number): number[][] {
-    // Simple maze generation
-    const dungeon = Array(height).fill(null).map(() => Array(width).fill(1));
-    
-    // Create paths
-    for (let y = 1; y < height - 1; y += 2) {
-      for (let x = 1; x < width - 1; x += 2) {
-        dungeon[y][x] = 0;
-        
-        // Random path
-        if (Math.random() > 0.5 && x < width - 3) {
-          dungeon[y][x + 1] = 0;
-        }
-        if (Math.random() > 0.5 && y < height - 3) {
-          dungeon[y + 1][x] = 0;
-        }
-      }
-    }
-    
-    // Create larger rooms
-    for (let i = 0; i < 8; i++) {
-      const roomX = Math.floor(Math.random() * (width - 8)) + 4;
-      const roomY = Math.floor(Math.random() * (height - 8)) + 4;
-      const roomW = Math.floor(Math.random() * 6) + 3;
-      const roomH = Math.floor(Math.random() * 6) + 3;
-      
-      for (let y = roomY; y < roomY + roomH && y < height - 1; y++) {
-        for (let x = roomX; x < roomX + roomW && x < width - 1; x++) {
-          dungeon[y][x] = 0;
-        }
-      }
-    }
-    
-    return dungeon;
+    const currentLevel = this.levelManager.getCurrentLevel();
+    this.walls = this.levelRenderer.renderLevel(currentLevel);
   }
 
   private createPlayer() {
-    this.player = this.physics.add.sprite(80, 80, 'player-enhanced');
+    // Verify player texture exists before creating sprite
+    if (!this.textures.exists('player-enhanced')) {
+      console.error('Player texture does not exist! Cannot create player.');
+      throw new Error('Player texture not found');
+    }
+    
+    const startPos = this.levelManager.getPlayerStartPosition();
+    this.player = this.physics.add.sprite(startPos.x, startPos.y, 'player-enhanced');
     this.player.setCollideWorldBounds(true);
-    this.player.setDrag(800); // Increased drag for better control
-    this.player.setMaxVelocity(160); // Reduced max velocity
-    this.player.body.setSize(24, 24); // Better collision detection
+    this.player.setDrag(800);
+    this.player.setMaxVelocity(160);
+    this.player.body.setSize(24, 24);
+    
+    // Ensure player is always visible and on top
+    this.player.setDepth(10);
+    this.player.setVisible(true);
     
     // Add a subtle glow effect
     this.player.setTint(0xffffff);
@@ -211,88 +142,54 @@ export class Enhanced2DScene extends Phaser.Scene {
       repeat: -1,
       ease: 'Sine.easeInOut'
     });
+    
+    console.log(`Player created at position (${startPos.x}, ${startPos.y})`);
   }
 
   private createEnemies() {
     this.enemies = this.physics.add.group();
-    
-    // Spawn enemies in different areas
-    for (let i = 0; i < 12; i++) {
-      let x, y;
-      let attempts = 0;
-      do {
-        x = Phaser.Math.Between(200, 1400);
-        y = Phaser.Math.Between(200, 1000);
-        attempts++;
-      } while (Phaser.Math.Distance.Between(x, y, 80, 80) < 250 && attempts < 20); // Don't spawn near player
-      
-      const enemy = this.physics.add.sprite(x, y, 'enemy-enhanced');
-      enemy.setCollideWorldBounds(true);
-      enemy.body.setSize(24, 24); // Better collision detection
-      enemy.setDrag(300);
-      
-      // Add enemy stats
-      enemy.setData('health', 30);
-      enemy.setData('maxHealth', 30);
-      enemy.setData('damage', 15);
-      enemy.setData('inCombat', false);
-      enemy.setData('combatCooldown', 0);
-      
-      // Create health bar for enemy
-      const healthBar = this.add.graphics();
-      enemy.setData('healthBar', healthBar);
-      
-      // AI movement pattern - less aggressive
-      this.tweens.add({
-        targets: enemy,
-        x: x + Phaser.Math.Between(-80, 80),
-        y: y + Phaser.Math.Between(-80, 80),
-        duration: Phaser.Math.Between(4000, 8000),
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut'
-      });
-      
-      this.enemies.add(enemy);
-    }
+    const currentLevel = this.levelManager.getCurrentLevel();
+    this.levelRenderer.spawnEnemies(currentLevel, this.enemies);
   }
 
   private createLoot() {
     this.loot = this.physics.add.group();
-    
-    // Place loot chests
-    for (let i = 0; i < 10; i++) {
-      let x, y;
-      do {
-        x = Phaser.Math.Between(100, 1500);
-        y = Phaser.Math.Between(100, 1100);
-      } while (Phaser.Math.Distance.Between(x, y, 80, 80) < 150);
-      
-      const chest = this.physics.add.sprite(x, y, 'loot-enhanced');
-      
-      // Sparkle effect
-      this.tweens.add({
-        targets: chest,
-        alpha: 0.7,
-        duration: 2000,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut'
-      });
-      
-      this.loot.add(chest);
-    }
+    const currentLevel = this.levelManager.getCurrentLevel();
+    this.levelRenderer.spawnLoot(currentLevel, this.loot);
   }
 
   private createUI() {
+    // Clear any existing UI elements from the container
+    this.uiContainer.removeAll(true);
+    
+    // Remove any existing UI elements with the same names to prevent duplicates
+    const existingUIElements = [
+      'healthBar', 'manaBar', 'controlsText', 'levelInfoText', 
+      'statsText', 'enemiesText', 'miniMap', 'miniMapLabel', 
+      'debugText', 'f1Instruction'
+    ];
+    
+    existingUIElements.forEach(name => {
+      const existing = this.children.getByName(name);
+      if (existing) {
+        existing.destroy();
+      }
+    });
+    
     // Health bar
     this.healthBar = this.add.graphics();
     this.healthBar.setScrollFactor(0);
+    this.healthBar.setDepth(100);
+    this.healthBar.setName('healthBar');
+    this.uiContainer.add(this.healthBar);
     this.updateHealthBar();
     
     // Mana bar
     this.manaBar = this.add.graphics();
     this.manaBar.setScrollFactor(0);
+    this.manaBar.setDepth(100);
+    this.manaBar.setName('manaBar');
+    this.uiContainer.add(this.manaBar);
     this.updateManaBar();
     
     // Controls instructions
@@ -307,28 +204,73 @@ export class Enhanced2DScene extends Phaser.Scene {
     );
     controlsText.setScrollFactor(0);
     controlsText.setAlpha(0.8);
+    controlsText.setDepth(100);
+    controlsText.setName('controlsText');
+    this.uiContainer.add(controlsText);
+    
+    // Level info display
+    const currentLevel = this.levelManager.getCurrentLevel();
+    this.levelInfoText = this.add.text(20, 140, 
+      `Level ${currentLevel.id}: ${currentLevel.name}`, 
+      {
+        fontSize: '14px',
+        color: '#FFD700',
+        backgroundColor: '#000000',
+        padding: { x: 4, y: 2 }
+      }
+    );
+    this.levelInfoText.setScrollFactor(0);
+    this.levelInfoText.setDepth(100);
+    this.levelInfoText.setName('levelInfoText');
+    this.uiContainer.add(this.levelInfoText);
     
     // Stats display
-    this.add.text(20, 140, 
-      `Level: ${this.playerStats.level} | XP: ${this.playerStats.experience}`, 
+    const statsText = this.add.text(20, 170, 
+      `Player Level: ${this.playerStats.level} | XP: ${this.playerStats.experience}`, 
       {
         fontSize: '12px',
         color: '#ffff00',
         backgroundColor: '#000000',
         padding: { x: 4, y: 2 }
       }
-    ).setScrollFactor(0);
+    );
+    statsText.setScrollFactor(0);
+    statsText.setDepth(100);
+    statsText.setName('statsText');
+    this.uiContainer.add(statsText);
+    
+    // Enemies remaining display
+    const enemiesText = this.add.text(20, 200, 
+      `Enemies: ${this.enemies.children.size}`, 
+      {
+        fontSize: '12px',
+        color: '#ff4444',
+        backgroundColor: '#000000',
+        padding: { x: 4, y: 2 }
+      }
+    );
+    enemiesText.setScrollFactor(0);
+    enemiesText.setName('enemiesText');
+    enemiesText.setDepth(100);
+    this.uiContainer.add(enemiesText);
     
     // Mini-map with actual world representation
     this.miniMap = this.add.graphics();
     this.miniMap.setScrollFactor(0);
+    this.miniMap.setDepth(100);
+    this.miniMap.setName('miniMap');
+    this.uiContainer.add(this.miniMap);
     this.createMiniMap();
     
     // Add mini-map label
-    this.add.text(665, 155, 'Mini Map', {
+    const miniMapLabel = this.add.text(665, 155, 'Mini Map', {
       fontSize: '10px',
       color: '#ffffff'
-    }).setScrollFactor(0);
+    });
+    miniMapLabel.setScrollFactor(0);
+    miniMapLabel.setDepth(100);
+    miniMapLabel.setName('miniMapLabel');
+    this.uiContainer.add(miniMapLabel);
     
     // Debug text
     this.debugText = this.add.text(300, 20, '', {
@@ -336,13 +278,22 @@ export class Enhanced2DScene extends Phaser.Scene {
       color: '#00ff00',
       backgroundColor: '#000000',
       padding: { x: 4, y: 2 }
-    }).setScrollFactor(0).setVisible(false);
+    });
+    this.debugText.setScrollFactor(0);
+    this.debugText.setVisible(false);
+    this.debugText.setDepth(100);
+    this.debugText.setName('debugText');
+    this.uiContainer.add(this.debugText);
     
     // Add F1 instruction
-    this.add.text(20, 180, 'Press F1 for debug info', {
+    const f1Instruction = this.add.text(20, 180, 'Press F1 for debug info', {
       fontSize: '10px',
       color: '#888888'
-    }).setScrollFactor(0);
+    });
+    f1Instruction.setScrollFactor(0);
+    f1Instruction.setDepth(100);
+    f1Instruction.setName('f1Instruction');
+    this.uiContainer.add(f1Instruction);
   }
 
   private createMiniMap() {
@@ -358,9 +309,10 @@ export class Enhanced2DScene extends Phaser.Scene {
     this.miniMap.lineStyle(2, 0xffffff);
     this.miniMap.strokeRect(mapX, mapY, mapWidth, mapHeight);
     
-    // Calculate scale factors
-    const scaleX = mapWidth / 1600; // World width
-    const scaleY = mapHeight / 1200; // World height
+    // Calculate scale factors based on current level
+    const bounds = this.levelManager.getWorldBounds();
+    const scaleX = mapWidth / bounds.width;
+    const scaleY = mapHeight / bounds.height;
     
     // Draw walls on minimap
     this.walls.children.entries.forEach((wall: any) => {
@@ -538,7 +490,20 @@ export class Enhanced2DScene extends Phaser.Scene {
           healthBar.destroy();
         }
         enemy.destroy();
-        this.gainExperience(25);
+        
+        // Get experience based on enemy type
+        const enemyType = enemy.getData('type') || 'goblin';
+        let experience = 25;
+        switch (enemyType) {
+          case 'orc': experience = 40; break;
+          case 'skeleton': experience = 35; break;
+          case 'boss': experience = 100; break;
+        }
+        
+        this.gainExperience(experience);
+        
+        // Check if level is complete
+        this.checkLevelCompletion();
       }
     });
     
@@ -547,6 +512,71 @@ export class Enhanced2DScene extends Phaser.Scene {
     
     GameRegistry.events.emit('combat-victory', { experience: 25 });
   }
+
+  private checkLevelCompletion() {
+    if (this.levelManager.checkLevelCompletion(this.enemies)) {
+      const currentLevel = this.levelManager.getCurrentLevel();
+      this.levelManager.markLevelCompleted(currentLevel.id);
+      
+      // Check if there's a next level
+      const nextLevel = getNextLevel(currentLevel.id);
+      if (!nextLevel) {
+        // Game complete! No more levels
+        this.gameComplete();
+      }
+    }
+    
+    // Update enemy count display
+    const enemiesText = this.getUIElement('enemiesText') as Phaser.GameObjects.Text;
+    if (enemiesText) {
+      enemiesText.setText(`Enemies: ${this.enemies.children.size}`);
+    }
+  }
+
+  private gameComplete() {
+    // Game completion screen
+    const gameCompleteText = this.add.text(400, 250, 'CONGRATULATIONS!\nYou have completed the dungeon!\n\nPress R to Restart', {
+      fontSize: '32px',
+      color: '#00ff00',
+      align: 'center'
+    }).setOrigin(0.5).setScrollFactor(0);
+    
+    // Add completion stats
+    const statsText = this.add.text(400, 350, 
+      `Final Level: ${this.playerStats.level}\n` +
+      `Total Experience: ${this.playerStats.experience}`, {
+      fontSize: '20px',
+      color: '#ffff00',
+      align: 'center'
+    }).setOrigin(0.5).setScrollFactor(0);
+    
+    // Add sparkle effects
+    this.tweens.add({
+      targets: gameCompleteText,
+      scaleX: 1.1,
+      scaleY: 1.1,
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+    
+    // Add restart functionality
+    const restartKey = this.input.keyboard!.addKey('R');
+    restartKey.on('down', () => {
+      // Reset player stats before restarting
+      this.resetPlayerStats();
+      this.scene.restart();
+    });
+    
+    GameRegistry.events.emit('game-complete', {
+      playerLevel: this.playerStats.level,
+      experience: this.playerStats.experience
+    });
+  }
+
+  // Remove level transition method since this is now a single-level game
+  // Game completion is handled in gameComplete() method
 
   private updateEnemyHealthBar(enemy: Phaser.Physics.Arcade.Sprite) {
     const healthBar = enemy.getData('healthBar');
@@ -606,8 +636,22 @@ export class Enhanced2DScene extends Phaser.Scene {
     // Add restart functionality
     const restartKey = this.input.keyboard!.addKey('R');
     restartKey.on('down', () => {
+      // Reset player stats before restarting
+      this.resetPlayerStats();
       this.scene.restart();
     });
+  }
+
+  private resetPlayerStats() {
+    // Reset player stats to initial values
+    this.playerStats = {
+      health: 100,
+      maxHealth: 100,
+      mana: 50,
+      maxMana: 50,
+      level: 1,
+      experience: 0
+    };
   }
 
   private collectLoot(loot: Phaser.Physics.Arcade.Sprite) {
@@ -624,10 +668,26 @@ export class Enhanced2DScene extends Phaser.Scene {
       }
     });
     
+    // Get loot type and emit appropriate event
+    const lootType = loot.getData('type') || 'chest';
+    let rarity = 'common';
+    let name = 'Treasure Chest';
+    
+    switch (lootType) {
+      case 'rare_chest':
+        rarity = 'rare';
+        name = 'Silver Chest';
+        break;
+      case 'legendary_chest':
+        rarity = 'legendary';
+        name = 'Golden Chest';
+        break;
+    }
+    
     GameRegistry.events.emit('loot-collected', {
       type: 'equipment',
-      name: 'Treasure Chest',
-      rarity: 'uncommon'
+      name: name,
+      rarity: rarity
     });
   }
 
@@ -720,6 +780,32 @@ export class Enhanced2DScene extends Phaser.Scene {
     this.updateManaBar();
   }
 
+  private setupCameraIgnores() {
+    // Make main camera ignore UI container
+    this.cameras.main.ignore(this.uiContainer);
+    
+    // Make UI camera ignore all game objects except UI container
+    const gameObjects = this.children.list.filter(child => child !== this.uiContainer);
+    this.uiCamera.ignore(gameObjects);
+    
+    console.log('Camera ignores setup:', {
+      mainCameraIgnoring: 'UI container',
+      uiCameraIgnoring: `${gameObjects.length} game objects`,
+      uiContainerChildren: this.uiContainer.list.length
+    });
+  }
+
+  private getUIElement(name: string): Phaser.GameObjects.GameObject | null {
+    // Check if the element is in the UI container
+    const containerChild = this.uiContainer.list.find((child: any) => child.name === name);
+    if (containerChild) {
+      return containerChild as Phaser.GameObjects.GameObject;
+    }
+    
+    // Fallback to checking scene children
+    return this.children.getByName(name);
+  }
+
   update() {
     const speed = 140;
     let velocityX = 0;
@@ -761,15 +847,33 @@ export class Enhanced2DScene extends Phaser.Scene {
       this.updateMiniMap();
     }
     
+    // Update enemy count display
+    const enemiesText = this.getUIElement('enemiesText') as Phaser.GameObjects.Text;
+    if (enemiesText) {
+      enemiesText.setText(`Enemies: ${this.enemies.children.size}`);
+    }
+    
+    // Update stats display
+    const statsText = this.getUIElement('statsText') as Phaser.GameObjects.Text;
+    if (statsText) {
+      statsText.setText(`Player Level: ${this.playerStats.level} | XP: ${this.playerStats.experience}`);
+    }
+    
     // Update debug info
     if (this.debugMode && this.debugText) {
+      const currentLevel = this.levelManager.getCurrentLevel();
       this.debugText.setText([
         `Player: (${this.player.x.toFixed(0)}, ${this.player.y.toFixed(0)})`,
+        `Player Visible: ${this.player.visible}, Depth: ${this.player.depth}`,
         `Velocity: (${this.player.body.velocity.x.toFixed(0)}, ${this.player.body.velocity.y.toFixed(0)})`,
         `Input: X=${velocityX}, Y=${velocityY}`,
         `Health: ${this.playerStats.health}/${this.playerStats.maxHealth}`,
         `Level: ${this.playerStats.level} (XP: ${this.playerStats.experience})`,
+        `Game Level: ${currentLevel.id} - ${currentLevel.name}`,
         `Enemies: ${this.enemies.children.size}`,
+        `Walls: ${this.walls.children.size}`,
+        `Loot: ${this.loot.children.size}`,
+        `Camera following: ${this.cameras.main.followOffset}`,
         `Combat Cooldown: ${this.combatCooldown}`
       ].join('\n'));
     }

@@ -48,7 +48,7 @@ contract CrossChainLootManagerTest is Test {
         vm.stopPrank();
     }
     
-    function testContractDeployment() public {
+    function testContractDeployment() public view {
         assertEq(crossChainLootManager.owner(), owner);
         assertEq(address(crossChainLootManager.lootManager()), address(lootManager));
         

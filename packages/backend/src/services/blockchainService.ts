@@ -1,49 +1,10 @@
-import { ethers, Contract, JsonRpcProvider, Wallet } from 'ethers';
+import { ethers, Contract, JsonRpcProvider } from 'ethers';
 import { createPublicClient, createWalletClient, http, parseAbi } from 'viem';
 import { sepolia, polygonMumbai, arbitrumGoerli } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { logger } from '../utils/logger';
 import { config } from '../config/config';
-
-// Contract ABIs (minimal required functions)
-const LOOT_MANAGER_ABI = parseAbi([
-  'function mintLoot(address to, string memory name, string memory lootType, uint256 rarity, uint256 power, string[] memory attributes) external returns (uint256)',
-  'function burnLoot(uint256 tokenId) external',
-  'function getPlayerEquipment(address player) external view returns (uint256[])',
-  'function setLendingStatus(uint256 tokenId, bool isLendable) external',
-  'function requestLoot(address player, uint256 partyId, uint256 dungeonLevel) external returns (uint256)',
-  'function ownerOf(uint256 tokenId) external view returns (address)',
-  'function transferFrom(address from, address to, uint256 tokenId) external'
-]);
-
-const PARTY_REGISTRY_ABI = parseAbi([
-  'function registerPlayer() external',
-  'function createParty(uint256 maxSize) external returns (uint256)',
-  'function joinParty(uint256 partyId) external',
-  'function leaveParty() external',
-  'function getPartyMembers(uint256 partyId) external view returns (address[])',
-  'function getPartySize(uint256 partyId) external view returns (uint256)',
-  'function isPartyActive(uint256 partyId) external view returns (bool)',
-  'function isPlayerInParty(uint256 partyId, address player) external view returns (bool)',
-  'function updatePlayerStats(address player, uint256 newLevel, uint256 newExperience) external'
-]);
-
-const CROSS_CHAIN_LOOT_MANAGER_ABI = parseAbi([
-  'function transferCrossChain(uint64 destinationChainSelector, address receiver, uint256 lootId, address feeTokenAddress) external payable returns (bytes32)',
-  'function allowlistDestinationChain(uint64 destinationChainSelector, bool allowed) external',
-  'function allowlistSourceChain(uint64 sourceChainSelector, bool allowed) external',
-  'function allowlistSender(address sender, bool allowed) external'
-]);
-
-interface ChainConfig {
-  id: number;
-  name: string;
-  rpcUrl: string;
-  lootManagerAddress: string;
-  partyRegistryAddress: string;
-  crossChainLootManagerAddress: string;
-  ccipChainSelector?: string;
-}
+import { abiLoader } from '@/utils/abiLoader';
 
 interface ContractAddresses {
   lootManager: string;
@@ -56,15 +17,37 @@ export class BlockchainService {
   private providers: Map<number, JsonRpcProvider> = new Map();
   private publicClients: Map<number, any> = new Map();
   private walletClients: Map<number, any> = new Map();
-  private contracts: Map<string, Contract> = new Map();
   private account: any;
   
   // Contract addresses per chain
   private contractAddresses: Map<number, ContractAddresses> = new Map();
 
+  private lootManagerABI: any[];
+  private partyRegistryABI: any[];
+  private crossChainLootManagerABI: any[];
+  private randomLootGeneratorABI: any[];
+
+  
+  
+
   constructor() {
+    this.loadABIs();
     this.initializeClients();
     this.loadContractAddresses();
+  }
+
+  private loadABIs() {
+    try {
+      this.lootManagerABI = abiLoader.getABI('LootManager');
+      this.partyRegistryABI = abiLoader.getABI('PartyRegistry');
+      this.crossChainLootManagerABI = abiLoader.getABI('CrossChainLootManager');
+      this.randomLootGeneratorABI = abiLoader.getABI('RandomLootGenerator');
+
+      logger.info('ABIs loaded successfully');
+    } catch (error) {
+      logger.error('Failed to load ABIs:', error);
+      throw new Error('ABI loading failed');
+    }
   }
 
   private initializeClients() {
@@ -127,7 +110,7 @@ export class BlockchainService {
     logger.info('Blockchain clients initialized');
   }
 
-  private loadContractAddresses() {
+  private loadContractAddresses(): void {
     // Load from environment variables or config
     // Sepolia addresses
     this.contractAddresses.set(11155111, {
@@ -139,6 +122,12 @@ export class BlockchainService {
 
     // Add other networks as needed
     logger.info('Contract addresses loaded');
+  }
+
+  async getPublicClient(chainId: number) {
+    const client = this.publicClients.get(chainId);
+    if (!client) throw new Error(`No public client found for chainId ${chainId}`);
+    return client;
   }
 
   // Loot Management Functions
@@ -162,7 +151,7 @@ export class BlockchainService {
 
       const hash = await walletClient.writeContract({
         address: addresses.lootManager as `0x${string}`,
-        abi: LOOT_MANAGER_ABI,
+        abi: this.lootManagerABI,
         functionName: 'mintLoot',
         args: [
           playerAddress as `0x${string}`,
@@ -206,7 +195,7 @@ export class BlockchainService {
 
       const lootData = await publicClient.readContract({
         address: addresses.lootManager as `0x${string}`,
-        abi: LOOT_MANAGER_ABI,
+        abi: this.lootManagerABI,
         functionName: 'getLoot',
         args: [tokenId]
       });
@@ -235,7 +224,7 @@ export class BlockchainService {
 
       const tokenIds = await publicClient.readContract({
         address: addresses.lootManager as `0x${string}`,
-        abi: LOOT_MANAGER_ABI,
+        abi: this.lootManagerABI,
         functionName: 'getPlayerEquipment',
         args: [playerAddress as `0x${string}`]
       });
@@ -259,7 +248,7 @@ export class BlockchainService {
 
       const hash = await walletClient.writeContract({
         address: addresses.partyRegistry as `0x${string}`,
-        abi: PARTY_REGISTRY_ABI,
+        abi: this.partyRegistryABI,
         functionName: 'registerPlayer'
       });
 
@@ -283,7 +272,7 @@ export class BlockchainService {
 
       const hash = await walletClient.writeContract({
         address: addresses.partyRegistry as `0x${string}`,
-        abi: PARTY_REGISTRY_ABI,
+        abi: this.partyRegistryABI,
         functionName: 'createParty',
         args: [BigInt(maxSize)]
       });
@@ -314,7 +303,7 @@ export class BlockchainService {
 
       const partyData = await publicClient.readContract({
         address: addresses.partyRegistry as `0x${string}`,
-        abi: PARTY_REGISTRY_ABI,
+        abi: this.partyRegistryABI,
         functionName: 'getParty',
         args: [partyId]
       });
@@ -353,7 +342,7 @@ export class BlockchainService {
 
       const hash = await walletClient.writeContract({
         address: addresses.crossChainLootManager as `0x${string}`,
-        abi: CROSS_CHAIN_LOOT_MANAGER_ABI,
+        abi: this.crossChainLootManagerABI,
         functionName: 'transferCrossChain',
         args: [
           destinationChainSelector as `0x${string}`,
@@ -374,6 +363,324 @@ export class BlockchainService {
       return hash;
     } catch (error) {
       logger.error('Error transferring loot cross-chain:', error);
+      throw error;
+    }
+  }
+
+  // Random Loot Generation Functions
+  async requestRandomLoot(chainId: number, playerAddress: string, dungeonLevel: number): Promise<{ requestId: string; transactionHash: string }> {
+    try {
+      const walletClient = this.walletClients.get(chainId);
+      const publicClient = this.publicClients.get(chainId);
+      const addresses = this.contractAddresses.get(chainId);
+
+      if (!walletClient || !publicClient || !addresses?.randomLootGenerator) {
+        throw new Error(`Chain ${chainId} not supported or RandomLootGenerator address missing`);
+      }
+
+      const hash = await walletClient.writeContract({
+        address: addresses.randomLootGenerator as `0x${string}`,
+        abi: this.randomLootGeneratorABI,
+        functionName: 'requestRandomLoot',
+        args: [playerAddress as `0x${string}`, BigInt(dungeonLevel)]
+      });
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      
+      // Extract requestId from logs (simplified for now)
+      const requestId = Math.floor(Math.random() * 1000000).toString();
+
+      logger.info(`Random loot requested for player: ${playerAddress}`, {
+        chainId,
+        dungeonLevel,
+        requestId,
+        transactionHash: hash
+      });
+
+      return {
+        requestId,
+        transactionHash: hash
+      };
+    } catch (error) {
+      logger.error('Error requesting random loot:', error);
+      throw error;
+    }
+  }
+
+  async getRequestStatus(chainId: number, requestId: string): Promise<{ fulfilled: boolean; randomWords: bigint[] }> {
+    try {
+      const publicClient = this.publicClients.get(chainId);
+      const addresses = this.contractAddresses.get(chainId);
+
+      if (!publicClient || !addresses?.randomLootGenerator) {
+        throw new Error(`Chain ${chainId} not supported`);
+      }
+
+      const result = await publicClient.readContract({
+        address: addresses.randomLootGenerator as `0x${string}`,
+        abi: this.randomLootGeneratorABI,
+        functionName: 'getRequestStatus',
+        args: [requestId]
+      });
+
+      return {
+        fulfilled: result[0] as boolean,
+        randomWords: result[1] as bigint[]
+      };
+    } catch (error) {
+      logger.error('Error getting request status:', error);
+      throw error;
+    }
+  }
+
+  // Enhanced Loot Management Functions
+  async requestLoot(chainId: number, playerAddress: string, partyId: bigint, dungeonLevel: number): Promise<{ requestId: string; transactionHash: string }> {
+    try {
+      const walletClient = this.walletClients.get(chainId);
+      const publicClient = this.publicClients.get(chainId);
+      const addresses = this.contractAddresses.get(chainId);
+
+      if (!walletClient || !publicClient || !addresses?.lootManager) {
+        throw new Error(`Chain ${chainId} not supported or LootManager address missing`);
+      }
+
+      const hash = await walletClient.writeContract({
+        address: addresses.lootManager as `0x${string}`,
+        abi: this.lootManagerABI,
+        functionName: 'requestLoot',
+        args: [playerAddress as `0x${string}`, partyId, BigInt(dungeonLevel)]
+      });
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      
+      // Extract requestId from logs (simplified for now)
+      const requestId = Math.floor(Math.random() * 1000000).toString();
+
+      logger.info(`Loot requested for player: ${playerAddress}`, {
+        chainId,
+        partyId: partyId.toString(),
+        dungeonLevel,
+        requestId,
+        transactionHash: hash
+      });
+
+      return {
+        requestId,
+        transactionHash: hash
+      };
+    } catch (error) {
+      logger.error('Error requesting loot:', error);
+      throw error;
+    }
+  }
+
+  async setLendingStatus(chainId: number, tokenId: bigint, isLendable: boolean): Promise<string> {
+    try {
+      const walletClient = this.walletClients.get(chainId);
+      const addresses = this.contractAddresses.get(chainId);
+
+      if (!walletClient || !addresses?.lootManager) {
+        throw new Error(`Chain ${chainId} not supported`);
+      }
+
+      const hash = await walletClient.writeContract({
+        address: addresses.lootManager as `0x${string}`,
+        abi: this.lootManagerABI,
+        functionName: 'setLendingStatus',
+        args: [tokenId, isLendable]
+      });
+
+      logger.info(`Lending status updated for token: ${tokenId}`, {
+        chainId,
+        tokenId: tokenId.toString(),
+        isLendable,
+        transactionHash: hash
+      });
+
+      return hash;
+    } catch (error) {
+      logger.error('Error setting lending status:', error);
+      throw error;
+    }
+  }
+
+  async burnLoot(chainId: number, tokenId: bigint): Promise<string> {
+    try {
+      const walletClient = this.walletClients.get(chainId);
+      const addresses = this.contractAddresses.get(chainId);
+
+      if (!walletClient || !addresses?.lootManager) {
+        throw new Error(`Chain ${chainId} not supported`);
+      }
+
+      const hash = await walletClient.writeContract({
+        address: addresses.lootManager as `0x${string}`,
+        abi: this.lootManagerABI,
+        functionName: 'burnLoot',
+        args: [tokenId]
+      });
+
+      logger.info(`Loot burned: ${tokenId}`, {
+        chainId,
+        tokenId: tokenId.toString(),
+        transactionHash: hash
+      });
+
+      return hash;
+    } catch (error) {
+      logger.error('Error burning loot:', error);
+      throw error;
+    }
+  }
+
+  // Enhanced Cross-Chain Functions
+  async getCrossChainFee(
+    sourceChainId: number,
+    destinationChainSelector: string,
+    receiverAddress: string,
+    lootData: any
+  ): Promise<bigint> {
+    try {
+      const publicClient = this.publicClients.get(sourceChainId);
+      const addresses = this.contractAddresses.get(sourceChainId);
+
+      if (!publicClient || !addresses?.crossChainLootManager) {
+        throw new Error(`Chain ${sourceChainId} not supported`);
+      }
+
+      const fee = await publicClient.readContract({
+        address: addresses.crossChainLootManager as `0x${string}`,
+        abi: this.crossChainLootManagerABI,
+        functionName: 'getFee',
+        args: [
+          destinationChainSelector as `0x${string}`,
+          receiverAddress as `0x${string}`,
+          JSON.stringify(lootData)
+        ]
+      });
+
+      return fee as bigint;
+    } catch (error) {
+      logger.error('Error getting cross-chain fee:', error);
+      throw error;
+    }
+  }
+
+  async allowlistDestinationChain(chainId: number, destinationChainSelector: string, allowed: boolean): Promise<string> {
+    try {
+      const walletClient = this.walletClients.get(chainId);
+      const addresses = this.contractAddresses.get(chainId);
+
+      if (!walletClient || !addresses?.crossChainLootManager) {
+        throw new Error(`Chain ${chainId} not supported`);
+      }
+
+      const hash = await walletClient.writeContract({
+        address: addresses.crossChainLootManager as `0x${string}`,
+        abi: this.crossChainLootManagerABI,
+        functionName: 'allowlistDestinationChain',
+        args: [destinationChainSelector as `0x${string}`, allowed]
+      });
+
+      logger.info(`Destination chain allowlist updated`, {
+        chainId,
+        destinationChainSelector,
+        allowed,
+        transactionHash: hash
+      });
+
+      return hash;
+    } catch (error) {
+      logger.error('Error updating destination chain allowlist:', error);
+      throw error;
+    }
+  }
+
+  async allowlistSourceChain(chainId: number, sourceChainSelector: string, allowed: boolean): Promise<string> {
+    try {
+      const walletClient = this.walletClients.get(chainId);
+      const addresses = this.contractAddresses.get(chainId);
+
+      if (!walletClient || !addresses?.crossChainLootManager) {
+        throw new Error(`Chain ${chainId} not supported`);
+      }
+
+      const hash = await walletClient.writeContract({
+        address: addresses.crossChainLootManager as `0x${string}`,
+        abi: this.crossChainLootManagerABI,
+        functionName: 'allowlistSourceChain',
+        args: [sourceChainSelector as `0x${string}`, allowed]
+      });
+
+      logger.info(`Source chain allowlist updated`, {
+        chainId,
+        sourceChainSelector,
+        allowed,
+        transactionHash: hash
+      });
+
+      return hash;
+    } catch (error) {
+      logger.error('Error updating source chain allowlist:', error);
+      throw error;
+    }
+  }
+
+  async withdrawToken(chainId: number, beneficiary: string, tokenAddress: string): Promise<string> {
+    try {
+      const walletClient = this.walletClients.get(chainId);
+      const addresses = this.contractAddresses.get(chainId);
+
+      if (!walletClient || !addresses?.crossChainLootManager) {
+        throw new Error(`Chain ${chainId} not supported`);
+      }
+
+      const hash = await walletClient.writeContract({
+        address: addresses.crossChainLootManager as `0x${string}`,
+        abi: this.crossChainLootManagerABI,
+        functionName: 'withdrawToken',
+        args: [beneficiary as `0x${string}`, tokenAddress as `0x${string}`]
+      });
+
+      logger.info(`Token withdrawal initiated`, {
+        chainId,
+        beneficiary,
+        tokenAddress,
+        transactionHash: hash
+      });
+
+      return hash;
+    } catch (error) {
+      logger.error('Error withdrawing token:', error);
+      throw error;
+    }
+  }
+
+  async withdraw(chainId: number, beneficiary: string): Promise<string> {
+    try {
+      const walletClient = this.walletClients.get(chainId);
+      const addresses = this.contractAddresses.get(chainId);
+
+      if (!walletClient || !addresses?.crossChainLootManager) {
+        throw new Error(`Chain ${chainId} not supported`);
+      }
+
+      const hash = await walletClient.writeContract({
+        address: addresses.crossChainLootManager as `0x${string}`,
+        abi: this.crossChainLootManagerABI,
+        functionName: 'withdraw',
+        args: [beneficiary as `0x${string}`]
+      });
+
+      logger.info(`ETH withdrawal initiated`, {
+        chainId,
+        beneficiary,
+        transactionHash: hash
+      });
+
+      return hash;
+    } catch (error) {
+      logger.error('Error withdrawing ETH:', error);
       throw error;
     }
   }
